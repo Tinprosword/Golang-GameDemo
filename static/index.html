@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Page</title>
+    <style>
+        div.hidden {
+            display: none;
+        }
+        div.show {
+            display: block;
+        }
+
+        input.hidden {
+            display: none;
+        }
+        input.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        let socket = new WebSocket("ws://localhost:8080/ws")
+        console.log("Attempting Websocket Connection")
+
+        socket.onopen = () => {
+            console.log("Successfully Connected")
+            // socket.send(txtInput.text)
+        }
+
+        socket.onclose = (event) => {
+            console.log("Socket Closed Connection: ", event)
+        }
+
+        socket.onmessage = (msg) => {
+            console.log("message received...")
+            console.log(msg.data)
+            var obj = JSON.parse(msg.data)
+            // console.log(obj)    
+            // console.log(obj.gameId)
+            if (obj.message="registration") {
+                playerRegistered(obj.gameId);
+                // console.log(obj.message)
+            }         
+        }
+
+        socket.onerror = (error) => {
+            console.log("Socket Error: ", error)
+        }
+    </script>
+    <div>
+        <div class="new-game show">
+            <input id="btnnew" type="button" value="New Game" onclick="newGame()">  
+        </div>   
+        <div>            
+            <span id="spmessage"></span>
+        </div>
+        <div class="in-game hidden">
+            <span id="spguessresult"></span>
+            <input id="txtinput" type="number">
+            <input id="txtplayer" type="text">
+            <input id="btnsubmit" type="button" value="Submit" onclick="sendMessage()">  
+            <input id="hiddenvalue" type="hidden" value="0">   
+            <input id="hdngameid" type="hidden">
+            <input id="hdntimestamp" type="hidden">       
+        </div>
+        
+    </div>    
+    <script>
+        var input = document.getElementById("txtinput");
+        var player = document.getElementById("txtplayer");
+        var btn = document.getElementById("btnsubmit");
+        var message = document.getElementById("spmessage");
+        var timestamp;
+        var playergameId;
+        function sendMessage() {
+            console.log("sending message...")
+            var ishidden = document.getElementById("hiddenvalue").value;
+            var gameplay = {}
+            if (ishidden != "0") { 
+                msg = input.value;
+            } else {
+                msg = player.value;
+            }
+            if (msg.length == 0) {
+                alert("Please input");
+                return false;
+            }
+            if (ishidden != "0") { 
+                const regex = new RegExp(/[^0-9]/, 'g');
+                if (msg.match(regex)) {
+                    alert("Please input numbers");
+                    return false;
+                }
+                if (msg < 1 || msg > 500) {
+                    alert("Number range from 1 to 500");
+                    return false;
+                }
+                gameplay = guessAnswer();
+            } else {
+                gameplay = registerPlayer();
+            }
+            console.log(JSON.stringify(gameplay));
+            socket.send(JSON.stringify(gameplay));
+            // socket.send(JSON.stringify(gameplay));
+
+            document.getElementById("hiddenvalue").value = parseFloat(ishidden) + 1;
+            // console.log(document.getElementById("hiddenvalue").value);
+        }   
+
+        function registerPlayer() {
+            var playerName = document.getElementById("txtplayer").value;
+            var registerMessage = "registration"
+            timestamp = Date.now()
+            document.getElementById("hdntimestamp").value = timestamp;
+            return {
+                "message":    registerMessage,
+                "playerName": playerName,
+                "timestamp":  timestamp
+            }
+        }  
+
+        function playerRegistered(gameId) {
+            // document.getElementById("hdngameid").value = gameId;
+            playergameId = gameId
+            message.textContent = "Guess the number range from 1 to 500"
+            document.getElementById("txtplayer").classList.add('hidden');
+            document.getElementById("txtinput").classList.remove('hidden');
+        }
+
+        function guessAnswer() {
+            var playerName = document.getElementById("txtplayer").value;
+            var answer = Number(document.getElementById("txtinput").value);
+            var guessMessage = "guess"
+            // var gameId = document.getElementById("hdngameid").value;
+            // timestamp = document.getElementById("hdntimestamp").value;
+
+            return {
+                "message":      guessMessage,     
+                // "playerName":   playerName,           
+                "timestamp":    timestamp,
+                "gameId":       playergameId,
+                "answer":       answer
+            }
+        }
+
+        function newGame() {
+            var ishidden = document.getElementById("hiddenvalue").value;
+            var ingame = document.getElementsByClassName("in-game");
+            var newgame = document.getElementsByClassName("new-game");
+
+            if (ishidden == "0") {                
+                for (var i=0; i<ingame.length; i++) {
+                    ingame[i].classList.remove('hidden');
+                    ingame[i].classList.add('show');
+                }
+                for (var i=0; i<newgame.length; i++) {
+                    newgame[i].classList.remove('show');
+                    newgame[i].classList.add('hidden');
+                }
+                document.getElementById("txtplayer").classList.remove('hidden');
+                document.getElementById("txtinput").classList.add('hidden');
+                message.textContent = "Enter your name"
+                document.getElementById("hdngameid").value = "";
+                document.getElementById("hdntimestamp").value = "";
+                // document.getElementById("txtinput").focus()
+                document.getElementById("txtplayer").focus()
+            } else {
+                for (var i=0; i<ingame.length; i++) {
+                    ingame[i].classList.remove('show');
+                    ingame[i].classList.add('hidden');
+                }
+                for (var i=0; i<newgame.length; i++) {
+                    newgame[i].classList.remove('hidden');
+                    newgame[i].classList.add('show');
+                }
+                message.textContent = ""
+            }            
+        }   
+        input.addEventListener("keypress", function(event) {
+            if (event.keyCode === 13) {
+                console.log("keypress to click button...")
+                btn.click()
+            }
+        })
+    </script>
+</body>
+</html>
